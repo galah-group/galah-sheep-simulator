@@ -4,10 +4,17 @@ import sys
 def parse_arguments(args = sys.argv[1:]):
     from optparse import OptionParser, make_option
 
-    option_list = []
+    option_list = [
+        make_option(
+            "-a","--action", dest ="actions",
+            type="string", action="store",
+            help="Comma separated list of actions to feed "
+                 "to the test harness"
+        )
+    ]
 
     parser = OptionParser(
-    	usage = "usage: %prog [options] [HARNESS_DIR] [TESTABLES_DIR]",
+        usage = "usage: %prog [options] [HARNESS_DIR] [TESTABLES_DIR]",
         description = "Tool for testing Galah test harnesses.",
         option_list = option_list
     )
@@ -23,39 +30,39 @@ import os.path
 import subprocess
 import json
 def main():
-	options, args = parse_arguments()
+    options, args = parse_arguments()
 
-	harness_directory = os.path.abspath(args[0])
-	testables_directory = os.path.abspath(args[1])
+    harness_directory = os.path.abspath(args[0])
+    testables_directory = os.path.abspath(args[1])
 
-	default_request = {
-		"harness_directory": harness_directory,
-		"testables_directory": testables_directory,
-		"raw_submission": {},
-		"raw_harness": {},
-		"raw_assignment": {},
-		"actions": []
-	}
+    default_request = {
+        "harness_directory": harness_directory,
+        "testables_directory": testables_directory,
+        "raw_submission": {},
+        "raw_harness": {},
+        "raw_assignment": {},
+        "actions": options.actions.split(",") if options.actions else []
+    }
 
-	# The location of the harness's main binary
-	harness_bin = os.path.join(harness_directory, "main")
+    # The location of the harness's main binary
+    harness_bin = os.path.join(harness_directory, "main")
 
-	process = subprocess.Popen(
-		[harness_bin],
-		stdin = subprocess.PIPE,
-		stdout = subprocess.PIPE
-	)
+    process = subprocess.Popen(
+        [harness_bin],
+        stdin = subprocess.PIPE,
+        stdout = subprocess.PIPE
+    )
 
-	json.dump(default_request, process.stdin)
-	process.stdin.close()
+    json.dump(default_request, process.stdin)
+    process.stdin.close()
 
-	result = json.load(process.stdout)
-	json.dump(result, sys.stdout, indent = 2, sort_keys = True)
+    result = json.load(process.stdout)
+    json.dump(result, sys.stdout, indent = 2, sort_keys = True)
 
-	process.wait()
+    process.wait()
 
-	# Make sure we end with a newline
-	print
+    # Make sure we end with a newline
+    print
 
 if __name__ == "__main__":
-	main()
+    main()
