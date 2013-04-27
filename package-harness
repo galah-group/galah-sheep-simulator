@@ -27,24 +27,24 @@ import os.path
 import tarfile
 
 def resolve_path(path):
-	return os.path.abspath(os.path.expanduser(path))
+    return os.path.abspath(os.path.expanduser(path))
 
 def parse_arguments(args = sys.argv[1:]):
     from optparse import OptionParser, make_option
 
     option_list = [
         make_option(
-        	"-i", "--include", dest = "packages", action = "append",
-        	default = [],
-        	help = "Specify multiple times to add directories into the "
-        	       "package (for example, the directory containing Galah "
-        	       "interact)."
+            "-i", "--include", dest = "packages", action = "append",
+            default = [],
+            help = "Specify multiple times to add directories into the "
+                   "package (for example, the directory containing Galah "
+                   "interact)."
         ),
         make_option(
-        	"-o", "--output", dest = "output_file", action = "store",
-        	default = "./harness.tgz",
-        	help = "Specify the file where the GZipped tar file will be "
-        	       "written to (default: %default)."
+            "-o", "--output", dest = "output_file", action = "store",
+            default = "./harness.tgz",
+            help = "Specify the file where the GZipped tar file will be "
+                   "written to (default: %default)."
         )
     ]
 
@@ -62,33 +62,33 @@ def parse_arguments(args = sys.argv[1:]):
     return (options, args)
 
 def main():
-	options, args = parse_arguments()
+    options, args = parse_arguments()
 
-	harness_dir = resolve_path(args[0])
-	if not os.path.isdir(harness_dir):
-		print >> sys.stderr, harness_dir, "is not a directory."
-		exit(1)
+    harness_dir = resolve_path(args[0])
+    if not os.path.isdir(harness_dir):
+        print >> sys.stderr, harness_dir, "is not a directory."
+        exit(1)
 
-	includes = []
-	for i in options.packages:
-		if os.path.exists(i):
-			includes.append(resolve_path(i))
-		else:
-			print >> sys.stderr, i, "does not exist."
-			exit(1)
+    includes = []
+    for i in options.packages:
+        if os.path.exists(i):
+            includes.append(resolve_path(i))
+        else:
+            print >> sys.stderr, i, "does not exist."
+            exit(1)
 
 
-	for i in (j for j in os.environ.get("GALAH_INCLUDE", "").split(",") if j):
-		if os.path.exists(i):
-			includes.append(resolve_path(i))
-		else:
-			print >> sys.stderr, i, "is in GALAH_INCLUDE environmental " \
-					"variable but does not exist. Ignoring."
-			exit(1)
+    for i in (j for j in os.environ.get("GALAH_INCLUDE", "").split(",") if j):
+        if os.path.exists(i):
+            includes.append(resolve_path(i))
+        else:
+            print >> sys.stderr, i, "is in GALAH_INCLUDE environmental " \
+                    "variable but does not exist. Ignoring."
+            exit(1)
 
-	with tarfile.open(resolve_path(options.output_file), mode = "w:gz") as f:
-		for i in [harness_dir] + includes:
-			f.add(i, arcname = os.path.relpath(i, os.path.dirname(i)))
+    with tarfile.open(resolve_path(options.output_file), mode = "w:gz") as f:
+        for i in [harness_dir] + includes:
+            f.add(i, arcname = os.path.relpath(i, os.path.dirname(i)))
 
 if __name__ == "__main__":
-	main()
+    main()
