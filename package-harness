@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2013 Galah Group LLC
+# Copyright (c) 2013 Other contributers as noted in the CONTRIBUTERS file
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+import sys
+import os
+import os.path
+import tarfile
+
+def resolve_path(path):
+	return os.path.abspath(os.path.expanduser(path))
+
+def parse_arguments(args = sys.argv[1:]):
+    from optparse import OptionParser, make_option
+
+    option_list = [
+        make_option(
+        	"-i", "--include", dest = "packages", action = "append",
+        	default = [],
+        	help = "Specify multiple times to add directories into the "
+        	       "package (for example, the directory containing Galah "
+        	       "interact)."
+        ),
+        make_option(
+        	"-o", "--output", dest = "output_file", action = "store",
+        	default = "./harness.tgz",
+        	help = "Specify the file where the GZipped tar file will be "
+        	       "written to (default: %default)."
+        )
+    ]
+
+    parser = OptionParser(
+        usage = "usage: %prog [options] [HARNESS_DIR]",
+        description = "Tool for packaging Galah test harnesses.",
+        option_list = option_list
+    )
+
+    options, args = parser.parse_args(args)
+
+    if len(args) != 1:
+        parser.error("Exactly one argument must be supplied.")
+
+    return (options, args)
+
+def main():
+	options, args = parse_arguments()
+
+	harness_dir = resolve_path(args[0])
+	if not os.path.isdir(harness_dir):
+		print >> sys.stderr, harness_dir, "is not a directory."
+		exit(1)
+
+	includes = []
+	for i in options.packages:
+		if os.path.exists(i):
+			includes.append(resolve_path(i))
+		else:
+			print >> sys.stderr, i, "does not exist."
+			exit(1)
+
+
+	for i in (j for j in os.environ.get("GALAH_INCLUDE", "").split(",") if j):
+		if os.path.exists(i):
+			includes.append(resolve_path(i))
+		else:
+			print >> sys.stderr, i, "is in GALAH_INCLUDE environmental " \
+					"variable but does not exist. Ignoring."
+			exit(1)
+
+	with tarfile.open(resolve_path(options.output_file), mode = "w:gz") as f:
+		for i in [harness_dir] + includes:
+			f.add(i, arcname = os.path.relpath(i, os.path.dirname(i)))
+
+if __name__ == "__main__":
+	main()
