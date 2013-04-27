@@ -1,15 +1,31 @@
 #!/usr/bin/env python
 
+import tempfile
+import shutil
+import os
+import os.path
 import sys
+
+to_delete = []
+
+def resolve_path(path):
+    return os.path.abspath(os.path.expanduser(path))
+
 def parse_arguments(args = sys.argv[1:]):
     from optparse import OptionParser, make_option
 
     option_list = [
         make_option(
-            "-a","--action", dest ="actions",
-            type="string", action="store",
-            help="Comma separated list of actions to feed "
-                 "to the test harness"
+            "-a", "--action", dest = "actions", action = "store",
+            help = "Comma separated list of actions to feed "
+                   "to the test harness"
+        ),
+        make_option(
+            "-i", "--include", dest = "packages", action = "append",
+            default = [],
+            help = "Specify multiple times to add files and/or directories "
+                   "that will be in the current directory when the harness is "
+                   "run."
         )
     ]
 
@@ -32,11 +48,36 @@ import json
 def main():
     options, args = parse_arguments()
 
-    harness_directory = os.path.abspath(args[0])
-    testables_directory = os.path.abspath(args[1])
+    harness_directory = resolve_path(args[0])
+    testables_directory = resolve_path(args[1])
+
+    for i in (harness_directory, testables_directory):
+        if not os.path.isdir(i):
+            print >> sys.stderr, i, "is not a directory."
+            exit(1)
+
+    includes = []
+    for i in options.packages:
+        if os.path.exists(i):
+            includes.append(resolve_path(i))
+        else:
+            print >> sys.stderr, i, "does not exist."
+            exit(1)
+
+    temp_dir = tempfile.mkdtemp()
+    to_delete.append(temp_dir)
+    harness_files = [
+        os.path.join(harness_directory, i) for i in
+            os.listdir(harness_directory)
+    ]
+    for i in harness_files + includes:
+        if os.path.isdir(i):
+            shutil.copytree(i, os.path.join(temp_dir, os.path.basename(i)))
+        else:
+            shutil.copy(i, os.path.join(temp_dir, os.path.basename(i)))
 
     default_request = {
-        "harness_directory": harness_directory,
+        "harness_directory": temp_dir,
         "testables_directory": testables_directory,
         "raw_submission": {},
         "raw_harness": {},
@@ -45,13 +86,16 @@ def main():
     }
 
     # The location of the harness's main binary
-    harness_bin = os.path.join(harness_directory, "main")
-
-    process = subprocess.Popen(
-        [harness_bin],
-        stdin = subprocess.PIPE,
-        stdout = subprocess.PIPE
-    )
+    harness_bin = os.path.join(temp_dir, "main")
+    try:
+        process = subprocess.Popen(
+            [harness_bin],
+            stdin = subprocess.PIPE,
+            stdout = subprocess.PIPE
+        )
+    except OSError as e:
+        print >> sys.stderr, "Could not execute", harness_bin, ", ", e
+        exit(1)
 
     json.dump(default_request, process.stdin)
     process.stdin.close()
@@ -65,4 +109,8 @@ def main():
     print
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        for i in to_delete:
+            shutil.rmtree(i)
